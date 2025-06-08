@@ -1,0 +1,65 @@
+# .github/workflows/deploy.yml
+name: Deploy to ECS
+
+on:
+  push:
+    branches:
+      - main  # or your production branch
+    paths:
+      - 'src/**'  # only trigger if application code changes
+      - '.github/workflows/deploy.yml'
+
+env:
+  AWS_REGION: us-east-1  # You can override per environment
+
+jobs:
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    environment:
+      name: production  # 👈 this uses GitHub Environment concept
+      url: https://your-app-url.com  # optional: link to app
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build and Push Docker Image
+        id: build-image
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, Tag, and Push Docker image to ECR
+        run: |
+          IMAGE_TAG=latest
+          ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
+          ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
+
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Deploy new task definition
+        run: |
+          CLUSTER_NAME=${{ secrets.CLUSTER_NAME }}
+          SERVICE_NAME=${{ secrets.SERVICE_NAME }}
+          IMAGE_URI=${{ steps.build-image.outputs.image }}
+
+          aws ecs update-service \
+            --cluster $CLUSTER_NAME \
+            --service $SERVICE_NAME \
+            --force-new-deployment
+
+      - name: Post Deployment Notification
+        if: success()
+        run: echo "Deployment to ${{ github.environment.name }} successful 🎉"

@@ -1,0 +1,8 @@
+{
+  "dev": {
+    "type": "t2.micro",
+    "max_capacity": 2,
+    "min_capacity": 1,
+    "desired_capacity": 1
+  }
+}

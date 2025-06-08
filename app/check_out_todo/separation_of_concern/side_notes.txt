@@ -1,0 +1,46 @@
+Add roles to task
+
+from aws_cdk import aws_iam as iam, aws_ecs as ecs
+
+# 1. Task Execution Role (ECS agent use only)
+task_execution_role = iam.Role(self, "TaskExecutionRole",
+    assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+    managed_policies=[
+        iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AmazonECSTaskExecutionRolePolicy")
+    ]
+)
+
+# 2. Single Task Role (App accesses S3, Secrets Manager, SQS)
+task_role = iam.Role(self, "TaskRole",
+    assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+)
+
+# 3. Attach multiple permissions to the same Task Role
+task_role.add_managed_policy(
+    iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3ReadOnlyAccess")
+)
+
+task_role.add_managed_policy(
+    iam.ManagedPolicy.from_aws_managed_policy_name("SecretsManagerReadWrite")
+)
+
+task_role.add_managed_policy(
+    iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSQSFullAccess")
+)
+
+# 4. Create the EC2 Task Definition
+task_definition = ecs.Ec2TaskDefinition(self, "Ec2TaskDef",
+    network_mode=ecs.NetworkMode.AWS_VPC,
+    execution_role=task_execution_role,
+    task_role=task_role
+)
+
+ECS EC2 Instance
+ ├── ECS Agent --> uses Execution Role (Pull Image, Push Logs)
+ └── App Container --> uses Task Role (Access S3, SecretsManager, SQS)
+
+App Container
+ └──> uses 1 task_role
+      ├──> Access S3 (Read)
+      ├──> Access SecretsManager (Read/Write)
+      └──> Access SQS (Send/Receive)

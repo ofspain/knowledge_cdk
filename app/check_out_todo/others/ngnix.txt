@@ -1,0 +1,50 @@
+upstream ecs_backend_springboot1 {
+    least_conn;
+    server springboot1.myapp.local:80;
+}
+
+upstream ecs_backend_springboot2 {
+    least_conn;
+    server springboot2.myapp.local:80;
+}
+
+server {
+    listen 80;
+
+    location /service1/ {
+        proxy_pass http://ecs_backend_springboot1;
+    }
+
+    location /service2/ {
+        proxy_pass http://ecs_backend_springboot2;
+    }
+}
+
+
+
+
+OR
+
+
+upstream ecs_backend_springboot1 {
+    least_conn;
+    server springboot1.myapp.local:80;
+}
+
+upstream ecs_backend_springboot2 {
+    least_conn;
+    server springboot2.myapp.local:80;
+}
+
+server {
+    listen 80;
+
+    location / {
+        if ($http_x_service = "springboot1") {
+            proxy_pass http://ecs_backend_springboot1;
+        }
+        if ($http_x_service = "springboot2") {
+            proxy_pass http://ecs_backend_springboot2;
+        }
+    }
+}

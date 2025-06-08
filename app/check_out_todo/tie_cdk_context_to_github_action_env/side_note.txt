@@ -1,0 +1,13 @@
+✅ Dynamic Environment Selection
+✅ Branch to Environment Mapping (no hardcoding)
+✅ Clean Context Passing into CDK
+✅ GitHub "Environments" Ready (if you want to add approvals later)
+✅ Full Automation for CI/CD
+
+
+
+######################################################################################################
+#  Set context programmatically : app.node.set_context("env", "prod")
+#  Set in cmd: cdk deploy --context env=prod
+# tie to github action environment
+#####################################################

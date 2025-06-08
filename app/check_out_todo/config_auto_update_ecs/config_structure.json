@@ -1,0 +1,12 @@
+{
+  "environment": {
+    "param_1": "value_1",
+    "param_2": "value_2"
+  },
+  "secrets": [
+    {
+      "resource": "database",
+      "secret_name": "mydatabase_secret"
+    }
+  ]
+}

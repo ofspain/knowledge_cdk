@@ -1,0 +1,52 @@
+your-cdk-app/
+├── app.py                # CDK app entry
+├── cdk_stack.py           # CDK infra stack
+├── lambda/
+│   └── handler.py         # Full Lambda code here
+├── requirements.txt       # CDK dependencies
+└── README.md (optional)
+
+
+Architecture Diagram
+
+Dev uploads new config.json --> S3 Bucket
+            |
+            | (S3 triggers Lambda function)
+            v
+Lambda reads config and secrets
+            |
+            | (registers new ECS task definition revision)
+            v
+   Lambda updates ECS Service
+            |
+            | (force new deployment)
+            v
+   ECS tasks restart with new environment!
+
+
+
+✨ After Deploying This Stack:
+A brand new S3 bucket will exist (e.g., configupdatestack-configbucket...)
+
+Lambda is automatically triggered when a new config.json is uploaded.
+
+Lambda reads the file, updates ECS Task Definition, triggers service deployment.
+
+No manual ECS update needed anymore!
+
+✨ Bonus (Optional Enhancements Later)
+Add CloudWatch Alarms if Lambda fails.
+
+Set bucket notification filters (e.g., only react to *.json files).
+
+Use Parameter Store to store env variables cleanly instead of hardcoding them.
+
+Add a backup plan for the config bucket (cross-region backup).
+
+
+
+🚀 Next level enhancement?
+
+A simple CDK stack to deploy the Lambda + S3 + permissions.
+
+A CloudWatch rule to monitor failures of config deployments.
