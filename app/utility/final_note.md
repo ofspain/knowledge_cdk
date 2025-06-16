@@ -613,6 +613,110 @@ class VpcFlowLogsToEsStack(core.Stack):
         ))
 ```
 
+# LAMBDA
+### ✅ A) Lambda with Public Configuration (No VPC)
+This is the simplest form — Lambda has outbound internet access by default.
+```python
+from aws_cdk import (
+    aws_lambda as lambda_,
+    aws_iam as iam,
+    Stack,
+)
+from constructs import Construct
+import os
+
+class PublicLambdaStack(Stack):
+    def __init__(self, scope: Construct, construct_id: str, **kwargs):
+        super().__init__(scope, construct_id, **kwargs)
+
+        # Create role with DynamoDB access
+        lambda_role = iam.Role(self, "PublicLambdaRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com")
+        )
+        lambda_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+        )
+        lambda_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonDynamoDBReadOnlyAccess")
+        )
+
+        # Define the function
+        lambda_.Function(self, "PublicLambda",
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler="index.handler",
+            code=lambda_.Code.from_asset("lambda"),  # assumes `lambda/index.py` exists
+            role=lambda_role,
+        )
+```
+🔁 The function can directly talk to DynamoDB over the internet — no extra networking needed.
+
+### ✅ B) Lambda Deployed Inside a VPC (with DynamoDB access)
+This example includes:
+- A VPC
+- A private subnet (no internet)
+- A Lambda inside that subnet
+- A VPC interface endpoint for DynamoDB, so the Lambda can access DynamoDB privately
+
+```python
+from aws_cdk import (
+    aws_lambda as lambda_,
+    aws_ec2 as ec2,
+    aws_iam as iam,
+    Stack
+)
+from constructs import Construct
+
+class VpcLambdaStack(Stack):
+    def __init__(self, scope: Construct, id: str, **kwargs):
+        super().__init__(scope, id, **kwargs)
+
+        # Create a VPC with private subnets only
+        vpc = ec2.Vpc(self, "LambdaVpc",
+            max_azs=2,
+            nat_gateways=0,  # no internet access
+            subnet_configuration=[
+                ec2.SubnetConfiguration(
+                    name="Private",
+                    subnet_type=ec2.SubnetType.PRIVATE_ISOLATED,
+                    cidr_mask=24
+                )
+            ]
+        )
+
+        # Add VPC endpoint for DynamoDB
+        vpc.add_interface_endpoint("DynamoDbEndpoint",
+            service=ec2.InterfaceVpcEndpointAwsService.DYNAMODB,
+            private_dns_enabled=True,
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+            security_groups=[]  # optional SG for endpoint
+        )
+
+        # IAM Role for Lambda
+        lambda_role = iam.Role(self, "PrivateLambdaRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com")
+        )
+        lambda_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaVPCAccessExecutionRole")
+        )
+        lambda_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+        )
+        lambda_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonDynamoDBReadOnlyAccess")
+        )
+
+        # Lambda inside the VPC
+        lambda_.Function(self, "PrivateLambda",
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler="index.handler",
+            code=lambda_.Code.from_asset("lambda"),
+            vpc=vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_ISOLATED),
+            role=lambda_role
+        )
+
+```
+
 
 
 
